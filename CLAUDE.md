@@ -34,9 +34,14 @@ Estas decisões ainda não foram tomadas. Se uma tarefa depender delas, PERGUNTE
 
 - Uma imobiliária pode ter vários corretores, cada um com login próprio (perfil tipo `imobiliaria` + `imobiliaria_id`)
 - Imóvel reservado ou em proposta continua visível no catálogo, marcado com o status
-- O endereço do imóvel fica visível para qualquer assinante ativo (sem tabela privada)
-- O proprietário vê visitas e propostas do próprio imóvel, mas não os dados do corretor/imobiliária
+- O endereço do imóvel fica visível para qualquer assinante ativo (sem tabela privada). Decisão mantida depois da auditoria da Etapa 2 (30/09/2026): a proteção contra desintermediação (imobiliária pegar o endereço e ir direto ao proprietário) será contratual, por uma cláusula no termo de assinatura da imobiliária
 - O admin pode reprovar imóvel (status `reprovado`)
+- Edição de imóvel aprovado (`disponivel`) vale na hora, sem nova aprovação. Cada campo alterado, inclusive fotos, é registrado na tabela `alteracoes_imovel`, que só o admin lê e marca como revisada. Risco aceito: a edição fica visível no catálogo até a revisão. Edição feita pelo admin não é registrada
+- Imóvel reservado, em proposta ou vendido não pode ser editado pelo proprietário (nem as fotos)
+- Imóvel reprovado é editado e reenviado pelo proprietário por um passo explícito (`reprovado` → `pendente_aprovacao`); editar não reenvia sozinho
+- O proprietário só apaga imóvel pendente de aprovação ou reprovado
+- O proprietário vê visitas e propostas do próprio imóvel só pelas funções `visitas_do_meu_imovel()` e `propostas_do_meu_imovel()`, que devolvem data, status e valor, sem os dados do corretor/imobiliária e sem texto livre do corretor (`observacoes`, `condicoes`)
+- Migrations são aplicadas à mão pelo SQL Editor do Supabase, em ordem de nome. Por isso o histórico de migrations do Supabase fica vazio: não rodar `supabase db push` sem antes marcar as já aplicadas com `supabase migration repair --status applied <versão>`
 
 ## Fora do escopo do MVP
 

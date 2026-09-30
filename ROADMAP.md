@@ -2,31 +2,52 @@
 
 ## Onde paramos
 
-Última atualização: 30/09/2026 · por Hevelyn
-Etapa atual: 1. Setup do projeto
+Última atualização: 30/09/2026 · por Gabriel
+Etapa atual: 3. Login e perfis (a Etapa 2 foi concluída)
 
 O que foi feito nesta sessão:
-- Projeto Next.js criado com TypeScript e Tailwind
-- Clientes do Supabase criados em `src/lib/supabase/` (navegador e servidor)
-- Página de teste da conexão criada em `src/app/teste-supabase/`
+- Banco de dados criado no Supabase: tabelas de imobiliárias, perfis, imóveis, fotos, reservas, visitas e propostas
+- Regras de segurança (RLS): cada tipo de usuário só enxerga e altera o que é dele; imobiliária bloqueada ou pendente não vê nenhum imóvel; o contato do proprietário nunca chega ao corretor
+- Auditoria da etapa feita, e os problemas escolhidos foram corrigidos numa migration nova:
+  - o proprietário pode editar imóvel já aprovado, mas cada mudança fica registrada para o admin revisar (tabela `alteracoes_imovel`)
+  - imóvel reservado, em proposta ou vendido não pode ser editado
+  - o proprietário vê visitas e propostas por funções que escondem os dados e os textos do corretor
+  - datas de cadastro e de aceite do termo passam a ser preenchidas pelo banco
+  - foto só pode apontar para a pasta do próprio imóvel no Storage
+- Roteiro de teste `supabase/testes/testar_rls.sql` com 71 testes, todos passando no SQL Editor do Supabase
+- Reauditoria depois das correções: nenhum problema crítico
 
 Próximo passo exato:
-- Abrir `http://localhost:3000/teste-supabase` e confirmar a mensagem "Conectado ao Supabase"
-- Fazer o primeiro commit e enviar para o GitHub
-- Marcar a Etapa 1 como concluída e seguir para a Etapa 2 (banco de dados)
+- Criar a branch `etapa-3-login-e-perfis` a partir da `main` atualizada (depois que o Pull Request da Etapa 2 for aceito)
+- Começar a Etapa 3 (login e perfis) resolvendo primeiro o item 4 da auditoria: travar também a criação de perfil (INSERT) e criar perfil só por uma função controlada no banco. No cadastro, o tipo é sempre `proprietario`; corretor só entra por convite ou pelo admin; ninguém se cria como `admin`
+- Essa trava entra numa migration nova, com testes novos no `testar_rls.sql`
 
 Pendências e bloqueios:
+- Etapa 3: trava de perfil no INSERT e criação de perfil só por função controlada (item 4 da auditoria). Hoje não existe regra de INSERT em `perfis`, então ninguém cria perfil pelo app; sem a trava, qualquer um se cadastraria como admin ou entraria numa imobiliária ativa sem pagar
+- Etapa 4: regras do bucket de fotos no Storage (caminho `<imovel_id>/arquivo`, só o dono do imóvel envia); botão "Reenviar para aprovação" no imóvel reprovado (o banco já permite `reprovado → pendente_aprovacao` pelo proprietário)
+- Etapa 5: tela "Edições para revisar" no painel do admin, que lê `alteracoes_imovel` e marca cada linha como revisada
+- Etapa 5: aprovar imóvel por uma função que só aprova se o imóvel não mudou desde que o admin abriu a tela (comparando `atualizado_em`). Hoje, uma edição feita enquanto o imóvel está pendente, entre o admin revisar e clicar em aprovar, vai ao ar sem registro em `alteracoes_imovel` (achado da reauditoria)
+- Etapa 7: rotina automática (cron) que expira reservas vencidas, mais um índice em `reservas(status, fim)`. Hoje a reserva vencida continua `ativa` e segura o imóvel
+- Etapa 7: a função de reservar trava a linha do imóvel (select ... for update), confere que o status é disponivel e só então cria a reserva e muda o status, tudo na mesma transação. Evita reserva dupla e edição do proprietário no mesmo instante da reserva
+- Issues abertas no GitHub (itens 10, 11 e 13 da auditoria): schema `teste_rls` que fica no banco depois do roteiro de teste; testes que dependem uns dos outros; exclusão e anonimização de usuários e imóveis (LGPD)
 - Apagar a pasta `src/app/teste-supabase/` antes do deploy (Etapa 10)
 - Decisões em aberto listadas no `CLAUDE.md` (prazo da reserva, modelo de receita, preço etc.) precisam ser tomadas antes das Etapas 7 e 8
 
 Atenção (algo que a próxima pessoa precisa saber):
+- O banco do Supabase é compartilhado: as duas pessoas usam o mesmo projeto. O que uma aplica no SQL Editor vale para a outra na hora
+- Migrations já aplicadas no banco, nesta ordem (não rode de novo):
+  1. `20260930120000_tabelas_iniciais.sql`
+  2. `20260930120100_rls.sql`
+  3. `20260930130000_correcoes_auditoria_etapa2.sql`
+- Correção no banco é sempre uma migration NOVA, nunca edição de uma que já rodou. Migrations são aplicadas à mão pelo SQL Editor; não use `supabase db push` (ver `CLAUDE.md`)
+- Depois de mudar o banco, rode o `supabase/testes/testar_rls.sql` inteiro no SQL Editor: toda linha tem que mostrar "✅ passou"
 - Cada pessoa precisa criar o próprio `.env.local` na raiz com `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. As chaves são combinadas por um canal privado, nunca pelo GitHub
 - Depois de criar ou mudar o `.env.local`, reinicie o `npm run dev`
 
 ## Etapas do MVP
 
 - [ ] 1. Setup do projeto — Pronto quando: a página abre em localhost, a conexão com o Supabase funciona e o código está no GitHub
-- [ ] 2. Banco de dados — Pronto quando: imobiliária bloqueada não enxerga nenhum imóvel
+- [x] 2. Banco de dados — Pronto quando: imobiliária bloqueada não enxerga nenhum imóvel
 - [ ] 3. Login e perfis — Pronto quando: cada tipo de usuário só abre a própria área
 - [ ] 4. Cadastro do imóvel — Pronto quando: imóvel cadastrado com fotos aparece como "pendente"
 - [ ] 5. Painel do admin — Pronto quando: admin aprova imóvel e ativa imobiliária
@@ -39,3 +60,4 @@ Atenção (algo que a próxima pessoa precisa saber):
 ## Histórico
 
 - 30/09/2026 · Hevelyn · Setup inicial do Next.js e conexão com o Supabase
+- 30/09/2026 · Gabriel · Etapa 2: banco de dados, RLS, auditoria e correções (71 testes passando)
