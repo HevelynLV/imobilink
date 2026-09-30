@@ -26,10 +26,17 @@ Estas decisões ainda não foram tomadas. Se uma tarefa depender delas, PERGUNTE
 
 - Prazo da reserva (quantos dias)
 - Máximo de reservas ativas por imobiliária
-- Imóvel reservado continua visível para outros assinantes (marcado como reservado) ou sai do catálogo
 - Modelo de receita: só mensalidade, ou mensalidade + % da comissão
 - Preço da mensalidade e ferramenta de cobrança (Asaas ou Mercado Pago)
 - Prazo da exclusividade (proposta atual: 90 dias)
+
+## Decisões tomadas
+
+- Uma imobiliária pode ter vários corretores, cada um com login próprio (perfil tipo `imobiliaria` + `imobiliaria_id`)
+- Imóvel reservado ou em proposta continua visível no catálogo, marcado com o status
+- O endereço do imóvel fica visível para qualquer assinante ativo (sem tabela privada)
+- O proprietário vê visitas e propostas do próprio imóvel, mas não os dados do corretor/imobiliária
+- O admin pode reprovar imóvel (status `reprovado`)
 
 ## Fora do escopo do MVP
 
