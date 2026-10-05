@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { FormularioRedefinirSenha } from "./formulario";
 
 // Chega-se aqui pelo link do e-mail de recuperação, que passa por
-// /auth/confirm e cria a sessão. Sem sessão, não há senha para trocar.
+// /auth/callback/recuperacao e cria a sessão. Sem sessão, não há senha para trocar.
 // Vale para qualquer tipo de usuário, por isso não usa exigirTipo().
 export default async function PaginaRedefinirSenha() {
   const supabase = await createClient();

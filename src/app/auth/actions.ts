@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SENHA_MINIMO, normalizarTelefone, telefoneValido, texto } from "@/lib/validacao";
@@ -20,12 +19,15 @@ export type EstadoFormulario = {
 };
 
 // Endereço do nosso site (ex.: http://localhost:3000), para montar o link de
-// volta dos e-mails. Vem do cabeçalho Origin: o Next.js já recusa Server
-// Actions cujo Origin não bate com o site, e o Supabase só aceita endereços
-// cadastrados em Redirect URLs no painel.
-async function enderecoDoSite() {
-  const h = await headers();
-  return h.get("origin") ?? `https://${h.get("host")}`;
+// volta dos e-mails. Vem do .env.local (SITE_URL, só do servidor), NUNCA dos
+// cabeçalhos da requisição: Origin e Host podem ser falsificados por quem
+// chama a action por script, e o link do e-mail iria para o site do atacante.
+function enderecoDoSite() {
+  const url = process.env.SITE_URL;
+  if (!url) {
+    throw new Error("SITE_URL não está configurada no .env.local (ex.: http://localhost:3000)");
+  }
+  return url.replace(/\/+$/, "");
 }
 
 // ---------------------------------------------------------------
@@ -85,7 +87,7 @@ export async function cadastrar(
     options: {
       data: dados,
       // Com a confirmação de e-mail ligada, o link do e-mail volta para cá.
-      emailRedirectTo: `${await enderecoDoSite()}/auth/callback/cadastro`,
+      emailRedirectTo: `${enderecoDoSite()}/auth/callback/cadastro`,
     },
   });
 
@@ -171,7 +173,7 @@ export async function pedirRecuperacao(
   // O link do e-mail volta para esta rota, que cria a sessão e manda para
   // /redefinir-senha. O link só funciona neste mesmo navegador (fluxo PKCE).
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await enderecoDoSite()}/auth/callback/recuperacao`,
+    redirectTo: `${enderecoDoSite()}/auth/callback/recuperacao`,
   });
 
   if (error?.code === "over_email_send_rate_limit") {
@@ -199,8 +201,9 @@ export async function redefinirSenha(
 
   const supabase = await createClient();
 
-  // Só troca a senha de quem está logado. O link do e-mail de recuperação
-  // (via /auth/confirm) é o que cria essa sessão.
+  // Só troca a senha de quem está logado. Quem chega pela recuperação ganha
+  // essa sessão em /auth/callback/recuperacao (ou em /auth/confirm, quando
+  // tivermos modelos de e-mail próprios).
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims?.sub) redirect("/esqueci-senha?expirado=1");
 

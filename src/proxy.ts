@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { AREA_POR_TIPO, ehTipoPerfil } from "@/lib/perfis";
+import { AREA_POR_TIPO, DESTINO_SEM_PERFIL, ehTipoPerfil } from "@/lib/perfis";
 
 // Proxy (antigo "middleware" até o Next.js 15): roda no servidor antes de
 // cada página. Faz duas coisas:
@@ -64,10 +64,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // Redireciona sem perder os cookies renovados acima.
+  // "destino" é sempre um endereço fixo deste arquivo, nunca vindo da requisição.
   function redirecionar(destino: string) {
-    const url = request.nextUrl.clone();
-    url.pathname = destino;
-    url.search = "";
+    const url = new URL(destino, request.url);
     const redirect = NextResponse.redirect(url);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     Object.entries(cabecalhosDaSessao).forEach(([chave, valor]) =>
@@ -82,17 +81,25 @@ export async function proxy(request: NextRequest) {
 
   // O tipo vem da tabela perfis (o RLS deixa cada um ler só o próprio perfil).
   // NUNCA do user_metadata: o usuário consegue alterar o próprio metadata.
-  const { data: perfil } = await supabase
+  const { data: perfil, error } = await supabase
     .from("perfis")
     .select("tipo")
     .eq("id", userId)
     .maybeSingle();
 
+  if (error) {
+    // Banco não respondeu: não dá para decidir aqui. Deixa seguir para a
+    // página, que confere de novo (exigirTipo) e, se o erro continuar, mostra
+    // a tela de erro sem mostrar conteúdo nenhum.
+    console.error("Proxy: erro ao ler o perfil:", error.code, error.message);
+    return response;
+  }
+
   const tipo = perfil?.tipo;
 
   if (!ehTipoPerfil(tipo)) {
-    // Logado mas sem perfil (ou erro ao ler): não entra em área nenhuma.
-    return areaPedida ? redirecionar("/login") : response;
+    // Logado mas sem perfil: não entra em área nenhuma. No /login vê o aviso.
+    return areaPedida ? redirecionar(DESTINO_SEM_PERFIL) : response;
   }
 
   const minhaArea = AREA_POR_TIPO[tipo];

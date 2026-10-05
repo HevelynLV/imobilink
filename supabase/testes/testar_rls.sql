@@ -789,9 +789,10 @@ insert into teste_rls.resultado (teste, esperado, obtido) values
   ('Cadastro com CRECI já usado é recusado (maiúscula/minúscula não importa)', 'bloqueado (23505)',
    teste_rls.tentar_cadastro('{"tipo":"imobiliaria","nome":"X","telefone":"11987654321","imobiliaria_nome":"Imob","creci":" teste-0001 "}'));
 
+-- "Cadastro recusado não deixa usuário em auth.users" não é testável aqui
+-- (as funções acima sempre desfazem o cadastro). Esse caso é conferido no
+-- teste manual pelo app: cadastro como admin pelo console do navegador.
 insert into teste_rls.resultado (teste, esperado, obtido) values
-  ('Cadastro recusado não deixa usuário em auth.users', '0',
-   (select count(*)::text from auth.users where id = '00000000-0000-4000-a000-0000000000c1')),
   ('Usuário criado sem tipo (SQL Editor) fica sem perfil', 'sem perfil',
    teste_rls.perfil_criado('{}')),
   ('Proprietário: telefone normalizado e sem imobiliária, mesmo se enviar dados de imobiliária',

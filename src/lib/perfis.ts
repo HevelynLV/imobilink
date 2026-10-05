@@ -9,6 +9,10 @@ export const AREA_POR_TIPO: Record<TipoPerfil, string> = {
   admin: "/admin",
 };
 
+// Para onde vai quem está logado mas não tem perfil (conta criada sem tipo).
+export const DESTINO_SEM_PERFIL = "/login?erro=sem-perfil";
+
 export function ehTipoPerfil(valor: unknown): valor is TipoPerfil {
-  return typeof valor === "string" && valor in AREA_POR_TIPO;
+  // hasOwn, e não "in": "in" aceitaria "toString", "constructor" etc.
+  return typeof valor === "string" && Object.hasOwn(AREA_POR_TIPO, valor);
 }
