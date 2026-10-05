@@ -1,5 +1,7 @@
 # Captador — Contexto do projeto
 
+> **Pessoa nova no projeto?** Siga o checklist "Como começar" no `README.md`. Antes de qualquer tarefa, leia "Onde paramos" e "Atenção" no `ROADMAP.md`.
+
 Você é um desenvolvedor sênior e mentor. Estamos construindo juntos o MVP do Captador.
 
 ## Sobre o app
@@ -19,6 +21,7 @@ O Captador é um marketplace de imóveis exclusivos. Proprietários cadastram im
 - Só assinantes ativos veem o catálogo
 - Uma reserva trava o imóvel para um corretor por um prazo fixo
 - Status do imóvel: pendente de aprovação, disponível, reservado, em proposta, vendido
+- Antes de ativar uma imobiliária, o admin confere o CRECI manualmente (o cadastro só checa que o CRECI não está repetido, não que ele é verdadeiro)
 
 ## Decisões ainda em aberto
 
@@ -35,6 +38,7 @@ Estas decisões ainda não foram tomadas. Se uma tarefa depender delas, PERGUNTE
 - Uma imobiliária pode ter vários corretores, cada um com login próprio (perfil tipo `imobiliaria` + `imobiliaria_id`)
 - Imóvel reservado ou em proposta continua visível no catálogo, marcado com o status
 - O endereço do imóvel fica visível para qualquer assinante ativo (sem tabela privada). Decisão mantida depois da auditoria da Etapa 2 (30/09/2026): a proteção contra desintermediação (imobiliária pegar o endereço e ir direto ao proprietário) será contratual, por uma cláusula no termo de assinatura da imobiliária
+- Cadastro pelo app só como `proprietario` ou `imobiliaria`; o perfil é criado por trigger no banco. Imobiliária cadastrada sempre cria uma imobiliária nova com assinatura `pendente`. Telefone com DDD é obrigatório para proprietário e imobiliária. O admin é criado à mão: cadastro normal e depois `update` do tipo no SQL Editor
 - O admin pode reprovar imóvel (status `reprovado`)
 - Edição de imóvel aprovado (`disponivel`) vale na hora, sem nova aprovação. Cada campo alterado, inclusive fotos, é registrado na tabela `alteracoes_imovel`, que só o admin lê e marca como revisada. Risco aceito: a edição fica visível no catálogo até a revisão. Edição feita pelo admin não é registrada
 - Imóvel reservado, em proposta ou vendido não pode ser editado pelo proprietário (nem as fotos)
@@ -83,6 +87,8 @@ Base em Python, lógica de programação, HTML e CSS básicos. Primeira vez com 
 - Nunca trabalhar direto na `main`: cada etapa tem sua própria branch
 - Mensagens de commit curtas e claras, ex: `feat: upload de fotos do imóvel`
 - Toda mudança no banco de dados vira um arquivo de migration no repositório, nunca só no painel do Supabase
+- Toda migration nova precisa ser aplicada no Supabase pelo SQL Editor e o `testar_rls.sql` precisa passar antes de seguir para o próximo passo. Avise a outra pessoa pelo ROADMAP ("Atenção") sempre que houver migration nova
 - Nunca colocar chaves ou senhas no código; elas ficam no `.env.local`, que não vai para o GitHub
 - A chave `service_role`/`secret` do Supabase nunca pode ter o prefixo `NEXT_PUBLIC_` nem ser usada em código do navegador
 - Sempre que eu disser que vou dar push, rode `/atualizar-roadmap` antes
+- Toda página de área e toda Server Action precisa chamar `exigirTipo()` (de `src/lib/auth.ts`) no início, porque uma action pode ser chamada direto, sem passar pela página. Exceções: as actions de entrar, cadastrar e pedir recuperação de senha (são para quem ainda não está logado) e as de sair e redefinir senha (valem para qualquer tipo; checam só que há usuário logado)
