@@ -2,28 +2,26 @@
 
 ## Onde paramos
 
-Última atualização: 30/09/2026 · por Gabriel
-Etapa atual: 3. Login e perfis (a Etapa 2 foi concluída)
+Última atualização: 05/10/2026 · por Hevelyn
+Etapa atual: 4. Cadastro do imóvel (a Etapa 3 foi concluída; falta só o Pull Request ser aceito)
 
-O que foi feito nesta sessão:
-- Banco de dados criado no Supabase: tabelas de imobiliárias, perfis, imóveis, fotos, reservas, visitas e propostas
-- Regras de segurança (RLS): cada tipo de usuário só enxerga e altera o que é dele; imobiliária bloqueada ou pendente não vê nenhum imóvel; o contato do proprietário nunca chega ao corretor
-- Auditoria da etapa feita, e os problemas escolhidos foram corrigidos numa migration nova:
-  - o proprietário pode editar imóvel já aprovado, mas cada mudança fica registrada para o admin revisar (tabela `alteracoes_imovel`)
-  - imóvel reservado, em proposta ou vendido não pode ser editado
-  - o proprietário vê visitas e propostas por funções que escondem os dados e os textos do corretor
-  - datas de cadastro e de aceite do termo passam a ser preenchidas pelo banco
-  - foto só pode apontar para a pasta do próprio imóvel no Storage
-- Roteiro de teste `supabase/testes/testar_rls.sql` com 71 testes, todos passando no SQL Editor do Supabase
-- Reauditoria depois das correções: nenhum problema crítico
+O que foi feito nesta sessão (Etapa 3, login e perfis):
+- Cadastro com e-mail e senha, escolhendo proprietário ou imobiliária. Telefone com DDD é obrigatório. Imobiliária informa nome e CRECI e entra com assinatura "pendente"
+- O perfil é criado pelo próprio banco no momento do cadastro (migration `20261005120000_cadastro_e_perfis.sql`). O banco só aceita "proprietário" ou "imobiliária": ninguém consegue se cadastrar como admin, nem mexendo na requisição
+- Login, logout e recuperação de senha. Os links dos e-mails usam o modelo padrão do Supabase (o link só funciona no mesmo navegador em que foi pedido)
+- Cada tipo de usuário vai para a sua área (`/proprietario`, `/imobiliaria`, `/admin`) e não consegue abrir a dos outros, nem digitando o endereço. São duas barreiras no app (`src/proxy.ts` e `exigirTipo()` em `src/lib/auth.ts`), além das regras do banco
+- O admin é criado à mão: cadastro normal como proprietário e depois o script `supabase/scripts/criar_admin.sql` no SQL Editor
+- Auditoria feita (nenhum problema crítico). Corrigidos: links dos e-mails passam a usar o `SITE_URL` do `.env.local`; aviso e botão Sair para quem está logado sem perfil; tela "Algo deu errado" quando o banco não responde; ajustes menores. O resto virou item em "Pendências"
+- Testes automáticos com Playwright (`npm run test:e2e`): 15 testes passando, cobrindo os 3 tipos de usuário, a tentativa de virar admin, CRECI repetido e os links de e-mail falsos ou vencidos. `testar_rls.sql` com 93 testes passando
+- README com o checklist "Como começar a trabalhar no Captador" para pessoa nova
 
 Próximo passo exato:
-- Criar a branch `etapa-3-login-e-perfis` a partir da `main` atualizada (depois que o Pull Request da Etapa 2 for aceito)
-- Começar a Etapa 3 (login e perfis) resolvendo primeiro o item 4 da auditoria: travar também a criação de perfil (INSERT) e criar perfil só por uma função controlada no banco. No cadastro, o tipo é sempre `proprietario`; corretor só entra por convite ou pelo admin; ninguém se cria como `admin`
-- Essa trava entra numa migration nova, com testes novos no `testar_rls.sql`
+- Abrir o Pull Request da branch `etapa-3-login-perfis` para a `main`. A outra pessoa faz o que está em "Atenção" abaixo, roda `npm run test:e2e` (tudo tem que passar) e aceita o PR
+- Depois do PR aceito: `git checkout main`, `git pull`, `npm install` e criar a branch `etapa-4-cadastro-do-imovel`
+- Começar a Etapa 4 pelas regras do bucket de fotos no Storage (primeiro item da Etapa 4 em "Pendências"), numa migration nova, aplicada no SQL Editor com o `testar_rls.sql` passando. Depois, a tela de cadastro do imóvel em `/proprietario` (toda página e Server Action chama `exigirTipo("proprietario")`) e o botão "Reenviar para aprovação"
+- Criar no GitHub a issue do achado 14 da auditoria da Etapa 3, se ainda não foi criada: aceitar telefone digitado com 0 na frente (`0 11 9...`) e reconhecer o erro do cadastro pelo código do Supabase, não pelo texto "Database error" (`src/lib/validacao.ts`, `src/app/auth/actions.ts` e a função `privado.normalizar_telefone`)
 
 Pendências e bloqueios:
-- Etapa 3: trava de perfil no INSERT e criação de perfil só por função controlada (item 4 da auditoria). Decisão de 05/10/2026: o perfil é criado só pelo trigger `criar_perfil_no_cadastro` (migration `20261005120000_cadastro_e_perfis.sql`). O cadastro aceita `proprietario` ou `imobiliaria`, nunca `admin`. Quem se cadastra como imobiliária sempre cria uma imobiliária NOVA com assinatura `pendente` e vira o primeiro corretor dela; não dá para entrar numa imobiliária existente pelo cadastro. Corretores adicionais da mesma imobiliária: por convite, numa etapa futura
 - Antes do piloto: configurar SMTP próprio (ex: Resend com domínio do Captador), modelos de e-mail em português apontando para /auth/confirm, e religar a confirmação de e-mail. Sem SMTP próprio o Supabase não deixa editar os modelos; até lá os e-mails usam o modelo padrão, que volta por `/auth/callback/cadastro` e `/auth/callback/recuperacao` (fluxo PKCE: o link só funciona no mesmo navegador do pedido). Depois de religar, testar cadastro e recuperação de senha de ponta a ponta. Junto com isso (achados 9, 10 e 11 da auditoria da Etapa 3):
   - com a confirmação ligada, o perfil e a imobiliária nascem ANTES de o e-mail ser confirmado: planejar a limpeza de contas nunca confirmadas, e testar o que acontece quando alguém repete o cadastro com o mesmo e-mail ainda não confirmado (o Supabase reaproveita o usuário e ignora os dados novos)
   - ligar "Secure password change" no painel (Authentication > Sign In / Providers > Email), para trocar a senha de uma sessão antiga exigir nova autenticação
@@ -60,9 +58,9 @@ O banco do Supabase é compartilhado (projeto `gaxvhygqwcvfgpudywmi`). Estas mig
 
 ## Etapas do MVP
 
-- [ ] 1. Setup do projeto — Pronto quando: a página abre em localhost, a conexão com o Supabase funciona e o código está no GitHub
+- [x] 1. Setup do projeto — Pronto quando: a página abre em localhost, a conexão com o Supabase funciona e o código está no GitHub
 - [x] 2. Banco de dados — Pronto quando: imobiliária bloqueada não enxerga nenhum imóvel
-- [ ] 3. Login e perfis — Pronto quando: cada tipo de usuário só abre a própria área
+- [x] 3. Login e perfis — Pronto quando: cada tipo de usuário só abre a própria área
 - [ ] 4. Cadastro do imóvel — Pronto quando: imóvel cadastrado com fotos aparece como "pendente"
 - [ ] 5. Painel do admin — Pronto quando: admin aprova imóvel e ativa imobiliária
 - [ ] 6. Catálogo — Pronto quando: imobiliária ativa filtra no celular e bloqueada não vê nada
@@ -75,3 +73,4 @@ O banco do Supabase é compartilhado (projeto `gaxvhygqwcvfgpudywmi`). Estas mig
 
 - 30/09/2026 · Hevelyn · Setup inicial do Next.js e conexão com o Supabase
 - 30/09/2026 · Gabriel · Etapa 2: banco de dados, RLS, auditoria e correções (71 testes passando)
+- 05/10/2026 · Hevelyn · Etapa 3: cadastro, login e perfis, auditoria e correções, testes e2e com Playwright (15 passando), README de início
