@@ -1,5 +1,7 @@
 # Captador — Contexto do projeto
 
+> **Pessoa nova no projeto?** Siga o checklist "Como começar" no `README.md`. Antes de qualquer tarefa, leia "Onde paramos" e "Atenção" no `ROADMAP.md`.
+
 Você é um desenvolvedor sênior e mentor. Estamos construindo juntos o MVP do Captador.
 
 ## Sobre o app
@@ -85,6 +87,7 @@ Base em Python, lógica de programação, HTML e CSS básicos. Primeira vez com 
 - Nunca trabalhar direto na `main`: cada etapa tem sua própria branch
 - Mensagens de commit curtas e claras, ex: `feat: upload de fotos do imóvel`
 - Toda mudança no banco de dados vira um arquivo de migration no repositório, nunca só no painel do Supabase
+- Toda migration nova precisa ser aplicada no Supabase pelo SQL Editor e o `testar_rls.sql` precisa passar antes de seguir para o próximo passo. Avise a outra pessoa pelo ROADMAP ("Atenção") sempre que houver migration nova
 - Nunca colocar chaves ou senhas no código; elas ficam no `.env.local`, que não vai para o GitHub
 - A chave `service_role`/`secret` do Supabase nunca pode ter o prefixo `NEXT_PUBLIC_` nem ser usada em código do navegador
 - Sempre que eu disser que vou dar push, rode `/atualizar-roadmap` antes
