@@ -1,3 +1,4 @@
+import { BotaoSair } from "@/components/botao-sair";
 import { exigirTipo } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,7 +21,10 @@ export default async function AreaImobiliaria() {
 
   return (
     <main className="mx-auto w-full max-w-md p-6">
-      <h1 className="text-2xl font-semibold">Olá, {perfil.nome}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Olá, {perfil.nome}</h1>
+        <BotaoSair />
+      </div>
       {imobiliaria && <p className="mt-1 text-gray-600">{imobiliaria.nome}</p>}
       <p className="mt-4 rounded-md bg-gray-100 p-4 text-gray-800">
         {AVISO_POR_STATUS[imobiliaria?.status_assinatura ?? ""] ??

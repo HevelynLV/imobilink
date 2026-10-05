@@ -1,3 +1,4 @@
+import { BotaoSair } from "@/components/botao-sair";
 import { exigirTipo } from "@/lib/auth";
 
 export default async function AreaAdmin() {
@@ -5,7 +6,10 @@ export default async function AreaAdmin() {
 
   return (
     <main className="mx-auto w-full max-w-md p-6">
-      <h1 className="text-2xl font-semibold">Olá, {perfil.nome}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Olá, {perfil.nome}</h1>
+        <BotaoSair />
+      </div>
       <p className="mt-2 text-gray-600">Painel do admin. Aprovações de imóveis e imobiliárias vão aparecer aqui.</p>
     </main>
   );

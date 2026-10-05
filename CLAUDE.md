@@ -88,3 +88,4 @@ Base em Python, lógica de programação, HTML e CSS básicos. Primeira vez com 
 - Nunca colocar chaves ou senhas no código; elas ficam no `.env.local`, que não vai para o GitHub
 - A chave `service_role`/`secret` do Supabase nunca pode ter o prefixo `NEXT_PUBLIC_` nem ser usada em código do navegador
 - Sempre que eu disser que vou dar push, rode `/atualizar-roadmap` antes
+- Toda página de área e toda Server Action precisa chamar `exigirTipo()` (de `src/lib/auth.ts`) no início, porque uma action pode ser chamada direto, sem passar pela página. Exceções: as actions de entrar, cadastrar e pedir recuperação de senha (são para quem ainda não está logado) e as de sair e redefinir senha (valem para qualquer tipo; checam só que há usuário logado)

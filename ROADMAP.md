@@ -24,7 +24,7 @@ Próximo passo exato:
 
 Pendências e bloqueios:
 - Etapa 3: trava de perfil no INSERT e criação de perfil só por função controlada (item 4 da auditoria). Decisão de 05/10/2026: o perfil é criado só pelo trigger `criar_perfil_no_cadastro` (migration `20261005120000_cadastro_e_perfis.sql`). O cadastro aceita `proprietario` ou `imobiliaria`, nunca `admin`. Quem se cadastra como imobiliária sempre cria uma imobiliária NOVA com assinatura `pendente` e vira o primeiro corretor dela; não dá para entrar numa imobiliária existente pelo cadastro. Corretores adicionais da mesma imobiliária: por convite, numa etapa futura
-- Antes do piloto: religar a confirmação de e-mail no painel do Supabase (Authentication > Sign In / Providers > Email > Confirm email) e testar o fluxo inteiro (link do e-mail de cadastro e de recuperação de senha passando por `/auth/confirm`). Ela fica desligada durante o desenvolvimento por causa do limite de e-mails do Supabase
+- Antes do piloto: configurar SMTP próprio (ex: Resend com domínio do Captador), modelos de e-mail em português apontando para /auth/confirm, e religar a confirmação de e-mail. Sem SMTP próprio o Supabase não deixa editar os modelos; até lá os e-mails usam o modelo padrão, que volta por `/auth/callback/cadastro` e `/auth/callback/recuperacao` (fluxo PKCE: o link só funciona no mesmo navegador do pedido). Depois de religar, testar cadastro e recuperação de senha de ponta a ponta
 - Etapa 4: regras do bucket de fotos no Storage (caminho `<imovel_id>/arquivo`, só o dono do imóvel envia); botão "Reenviar para aprovação" no imóvel reprovado (o banco já permite `reprovado → pendente_aprovacao` pelo proprietário)
 - Etapa 5: tela "Edições para revisar" no painel do admin, que lê `alteracoes_imovel` e marca cada linha como revisada
 - Etapa 5: aprovar imóvel por uma função que só aprova se o imóvel não mudou desde que o admin abriu a tela (comparando `atualizado_em`). Hoje, uma edição feita enquanto o imóvel está pendente, entre o admin revisar e clicar em aprovar, vai ao ar sem registro em `alteracoes_imovel` (achado da reauditoria)
@@ -32,6 +32,7 @@ Pendências e bloqueios:
 - Etapa 7: a função de reservar trava a linha do imóvel (select ... for update), confere que o status é disponivel e só então cria a reserva e muda o status, tudo na mesma transação. Evita reserva dupla e edição do proprietário no mesmo instante da reserva
 - Issues abertas no GitHub (itens 10, 11 e 13 da auditoria): schema `teste_rls` que fica no banco depois do roteiro de teste; testes que dependem uns dos outros; exclusão e anonimização de usuários e imóveis (LGPD)
 - Apagar a pasta `src/app/teste-supabase/` antes do deploy (Etapa 10)
+- Etapa 10: no painel do Supabase, trocar o Site URL (Authentication > URL Configuration) pelo endereço da Vercel e adicionar `https://<endereço>/auth/callback/**` e `https://<endereço>/auth/confirm` em Redirect URLs. Os links dos e-mails de confirmação e de recuperação usam o Site URL
 - Decisões em aberto listadas no `CLAUDE.md` (prazo da reserva, modelo de receita, preço etc.) precisam ser tomadas antes das Etapas 7 e 8
 
 Atenção (algo que a próxima pessoa precisa saber):
