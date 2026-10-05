@@ -21,7 +21,7 @@ export async function createClient() {
             );
           } catch {
             // Server Components não podem gravar cookies. Tudo bem:
-            // quando fizermos o login, um middleware vai renovar a sessão.
+            // o src/proxy.ts renova a sessão antes de cada página.
           }
         },
       },

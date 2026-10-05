@@ -23,7 +23,8 @@ Próximo passo exato:
 - Essa trava entra numa migration nova, com testes novos no `testar_rls.sql`
 
 Pendências e bloqueios:
-- Etapa 3: trava de perfil no INSERT e criação de perfil só por função controlada (item 4 da auditoria). Hoje não existe regra de INSERT em `perfis`, então ninguém cria perfil pelo app; sem a trava, qualquer um se cadastraria como admin ou entraria numa imobiliária ativa sem pagar
+- Etapa 3: trava de perfil no INSERT e criação de perfil só por função controlada (item 4 da auditoria). Decisão de 05/10/2026: o perfil é criado só pelo trigger `criar_perfil_no_cadastro` (migration `20261005120000_cadastro_e_perfis.sql`). O cadastro aceita `proprietario` ou `imobiliaria`, nunca `admin`. Quem se cadastra como imobiliária sempre cria uma imobiliária NOVA com assinatura `pendente` e vira o primeiro corretor dela; não dá para entrar numa imobiliária existente pelo cadastro. Corretores adicionais da mesma imobiliária: por convite, numa etapa futura
+- Antes do piloto: religar a confirmação de e-mail no painel do Supabase (Authentication > Sign In / Providers > Email > Confirm email) e testar o fluxo inteiro (link do e-mail de cadastro e de recuperação de senha passando por `/auth/confirm`). Ela fica desligada durante o desenvolvimento por causa do limite de e-mails do Supabase
 - Etapa 4: regras do bucket de fotos no Storage (caminho `<imovel_id>/arquivo`, só o dono do imóvel envia); botão "Reenviar para aprovação" no imóvel reprovado (o banco já permite `reprovado → pendente_aprovacao` pelo proprietário)
 - Etapa 5: tela "Edições para revisar" no painel do admin, que lê `alteracoes_imovel` e marca cada linha como revisada
 - Etapa 5: aprovar imóvel por uma função que só aprova se o imóvel não mudou desde que o admin abriu a tela (comparando `atualizado_em`). Hoje, uma edição feita enquanto o imóvel está pendente, entre o admin revisar e clicar em aprovar, vai ao ar sem registro em `alteracoes_imovel` (achado da reauditoria)

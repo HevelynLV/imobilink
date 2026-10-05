@@ -1,4 +1,4 @@
--- Roteiro de teste do RLS · Etapa 2
+-- Roteiro de teste do RLS · Etapas 2 e 3
 -- Como usar: cole o arquivo inteiro no SQL Editor do Supabase e clique em Run.
 -- O resultado é uma tabela: toda linha deve mostrar "✅ passou".
 -- Usa só IDs fictícios fixos (abaixo) e apaga esses dados no final.
@@ -15,6 +15,7 @@
 --
 -- Testes de bloqueio conferem o código do erro:
 --   42501 = RLS ou falta de permissão · P0001 = trigger · 23514 = regra (check)
+--   23505 = valor repetido (unique)
 -- Qualquer outro erro aparece como "erro inesperado" e o teste falha.
 --
 -- Testes que alteram dados desfazem a alteração no final (bloco com
@@ -41,7 +42,7 @@ returns text
 language sql
 as $$
   select case
-    when p_estado in ('42501', 'P0001', '23514') then 'bloqueado (' || p_estado || ')'
+    when p_estado in ('42501', 'P0001', '23514', '23505') then 'bloqueado (' || p_estado || ')'
     else 'erro inesperado: ' || p_estado || ' ' || p_msg
   end;
 $$;
@@ -98,12 +99,12 @@ insert into public.imobiliarias (id, nome, creci, status_assinatura) values
 
 insert into public.perfis (id, tipo, nome, telefone, imobiliaria_id) values
   ('00000000-0000-4000-a000-000000000001', 'admin',        'Admin',           null,            null),
-  ('00000000-0000-4000-a000-000000000002', 'proprietario', 'Proprietário 1',  '11 90000-0001', null),
-  ('00000000-0000-4000-a000-000000000003', 'proprietario', 'Proprietário 2',  '11 90000-0002', null),
-  ('00000000-0000-4000-a000-000000000004', 'imobiliaria',  'Corretor Ativo',  '11 90000-0004', 'bbbbbbbb-0000-4000-a000-000000000001'),
-  ('00000000-0000-4000-a000-000000000005', 'imobiliaria',  'Corretor Bloq',   '11 90000-0005', 'bbbbbbbb-0000-4000-a000-000000000002'),
-  ('00000000-0000-4000-a000-000000000006', 'imobiliaria',  'Corretor Colega', '11 90000-0006', 'bbbbbbbb-0000-4000-a000-000000000001'),
-  ('00000000-0000-4000-a000-000000000007', 'imobiliaria',  'Corretor Pend',   '11 90000-0007', 'bbbbbbbb-0000-4000-a000-000000000003');
+  ('00000000-0000-4000-a000-000000000002', 'proprietario', 'Proprietário 1',  '11900000001', null),
+  ('00000000-0000-4000-a000-000000000003', 'proprietario', 'Proprietário 2',  '11900000002', null),
+  ('00000000-0000-4000-a000-000000000004', 'imobiliaria',  'Corretor Ativo',  '11900000004', 'bbbbbbbb-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-a000-000000000005', 'imobiliaria',  'Corretor Bloq',   '11900000005', 'bbbbbbbb-0000-4000-a000-000000000002'),
+  ('00000000-0000-4000-a000-000000000006', 'imobiliaria',  'Corretor Colega', '11900000006', 'bbbbbbbb-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-a000-000000000007', 'imobiliaria',  'Corretor Pend',   '11900000007', 'bbbbbbbb-0000-4000-a000-000000000003');
 
 insert into public.imoveis (id, proprietario_id, titulo, tipo, bairro, preco, status, termo_aceito_em, aprovado_em) values
   ('cccccccc-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000002', 'Imóvel 1', 'apartamento', 'Centro', 500000, 'disponivel',         now(), now()),
@@ -708,7 +709,180 @@ insert into teste_rls.resultado (teste, esperado, obtido) values
    has_function_privilege('anon', 'privado.registrar_alteracao_imovel(uuid, text, text, text)', 'execute')::text);
 
 -- ---------------------------------------------------------------
--- 10. Limpeza e resultado
+-- 10. Cadastro e perfis (Etapa 3)
+-- ---------------------------------------------------------------
+-- Simula o Supabase Auth criando um usuário com os dados do formulário
+-- (raw_user_meta_data), o que dispara o trigger criar_perfil_no_cadastro.
+-- Todo cadastro é desfeito no final (TR001); nada fica no banco.
+
+-- Tenta cadastrar e devolve "permitido" ou "bloqueado (código)"
+create function teste_rls.tentar_cadastro(p_dados jsonb)
+returns text
+language plpgsql
+as $$
+begin
+  begin
+    insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
+    values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-a000-0000000000c1',
+            'authenticated', 'authenticated', 'cadastro@teste.local', p_dados);
+    raise exception 'desfazer' using errcode = 'TR001';
+  exception when sqlstate 'TR001' then
+    return 'permitido';
+  end;
+exception when others then
+  return teste_rls.bloqueio(sqlstate, sqlerrm);
+end;
+$$;
+
+-- Cadastra e descreve o perfil criado: "tipo | telefone | imobiliária"
+create function teste_rls.perfil_criado(p_dados jsonb)
+returns text
+language plpgsql
+as $$
+declare
+  v text;
+begin
+  begin
+    insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
+    values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-a000-0000000000c1',
+            'authenticated', 'authenticated', 'cadastro@teste.local', p_dados);
+
+    select p.tipo || ' | ' || coalesce(p.telefone, 'sem telefone') || ' | ' ||
+           case
+             when i.id is null then 'sem imobiliária'
+             when i.id::text like 'bbbbbbbb-%' then 'imobiliária JÁ EXISTENTE'
+             else 'imobiliária nova ' || i.status_assinatura || ' ' || i.creci
+           end
+    into v
+    from public.perfis p
+    left join public.imobiliarias i on i.id = p.imobiliaria_id
+    where p.id = '00000000-0000-4000-a000-0000000000c1';
+
+    raise exception 'desfazer' using errcode = 'TR001';
+  exception when sqlstate 'TR001' then
+    return coalesce(v, 'sem perfil');
+  end;
+exception when others then
+  return 'erro inesperado: ' || sqlstate || ' ' || sqlerrm;
+end;
+$$;
+
+insert into teste_rls.resultado (teste, esperado, obtido) values
+  ('Cadastro como admin é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"admin","nome":"Hacker","telefone":"11987654321"}')),
+  ('Cadastro com tipo inventado é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"corretor","nome":"X","telefone":"11987654321"}')),
+  ('Cadastro com tipo vazio é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":null,"nome":"X","telefone":"11987654321"}')),
+  ('Cadastro sem nome é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"proprietario","nome":"  ","telefone":"11987654321"}')),
+  ('Cadastro sem telefone é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"proprietario","nome":"X"}')),
+  ('Cadastro com telefone sem DDD é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"proprietario","nome":"X","telefone":"98765-4321"}')),
+  ('Cadastro com DDD inválido (01) é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"proprietario","nome":"X","telefone":"01987654321"}')),
+  ('Cadastro de imobiliária sem CRECI é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"imobiliaria","nome":"X","telefone":"11987654321","imobiliaria_nome":"Imob"}')),
+  ('Cadastro de imobiliária sem nome da imobiliária é recusado', 'bloqueado (P0001)',
+   teste_rls.tentar_cadastro('{"tipo":"imobiliaria","nome":"X","telefone":"11987654321","creci":"TESTE-CAD-1"}')),
+  ('Cadastro com CRECI já usado é recusado (maiúscula/minúscula não importa)', 'bloqueado (23505)',
+   teste_rls.tentar_cadastro('{"tipo":"imobiliaria","nome":"X","telefone":"11987654321","imobiliaria_nome":"Imob","creci":" teste-0001 "}'));
+
+insert into teste_rls.resultado (teste, esperado, obtido) values
+  ('Cadastro recusado não deixa usuário em auth.users', '0',
+   (select count(*)::text from auth.users where id = '00000000-0000-4000-a000-0000000000c1')),
+  ('Usuário criado sem tipo (SQL Editor) fica sem perfil', 'sem perfil',
+   teste_rls.perfil_criado('{}')),
+  ('Proprietário: telefone normalizado e sem imobiliária, mesmo se enviar dados de imobiliária',
+   'proprietario | 11987654321 | sem imobiliária',
+   teste_rls.perfil_criado('{"tipo":"proprietario","nome":"Prop","telefone":"(11) 98765-4321",
+                             "imobiliaria_id":"bbbbbbbb-0000-4000-a000-000000000001",
+                             "imobiliaria_nome":"Imob","creci":"TESTE-CAD-1"}')),
+  ('Telefone fixo com +55 é aceito e normalizado',
+   'proprietario | 2133334444 | sem imobiliária',
+   teste_rls.perfil_criado('{"tipo":"proprietario","nome":"Prop","telefone":"+55 (21) 3333-4444"}')),
+  ('Imobiliária nasce nova e pendente, ignorando status e imobiliaria_id enviados',
+   'imobiliaria | 11987654321 | imobiliária nova pendente TESTE-CAD-2',
+   teste_rls.perfil_criado('{"tipo":"imobiliaria","nome":"Corretor","telefone":"11987654321",
+                             "imobiliaria_nome":"Imob Nova","creci":"teste-cad-2",
+                             "status_assinatura":"ativa",
+                             "imobiliaria_id":"bbbbbbbb-0000-4000-a000-000000000001"}'));
+
+-- Usuário logado tentando criar perfil ou imobiliária direto pelo app
+set role authenticated;
+set request.jwt.claims = '{"sub":"00000000-0000-4000-a000-000000000002","role":"authenticated"}';
+
+do $$ begin
+  insert into public.perfis (id, tipo, nome, telefone)
+  values ('00000000-0000-4000-a000-000000000002', 'admin', 'Furão', null);
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Usuário logado não cria perfil pelo app', 'bloqueado (42501)', 'permitido');
+exception when others then
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Usuário logado não cria perfil pelo app', 'bloqueado (42501)', teste_rls.bloqueio(sqlstate, sqlerrm));
+end $$;
+
+do $$ begin
+  insert into public.imobiliarias (nome, creci, status_assinatura)
+  values ('Furona', 'TESTE-CAD-3', 'ativa');
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Usuário logado não cria imobiliária pelo app', 'bloqueado (42501)', 'permitido');
+exception when others then
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Usuário logado não cria imobiliária pelo app', 'bloqueado (42501)', teste_rls.bloqueio(sqlstate, sqlerrm));
+end $$;
+
+do $$ begin
+  update public.perfis set telefone = null where id = '00000000-0000-4000-a000-000000000002';
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Proprietário não apaga o próprio telefone', 'bloqueado (23514)', 'permitido');
+exception when others then
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Proprietário não apaga o próprio telefone', 'bloqueado (23514)', teste_rls.bloqueio(sqlstate, sqlerrm));
+end $$;
+
+do $$ begin
+  update public.perfis set telefone = '1234' where id = '00000000-0000-4000-a000-000000000002';
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Proprietário não grava telefone em formato inválido', 'bloqueado (23514)', 'permitido');
+exception when others then
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Proprietário não grava telefone em formato inválido', 'bloqueado (23514)', teste_rls.bloqueio(sqlstate, sqlerrm));
+end $$;
+
+do $$ declare n int; begin
+  begin
+    update public.perfis set telefone = '21987654321' where id = '00000000-0000-4000-a000-000000000002';
+    get diagnostics n = row_count;
+    raise exception 'desfazer' using errcode = 'TR001';
+  exception when sqlstate 'TR001' then null;
+  end;
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Proprietário troca o próprio telefone por um válido', '1 linhas', n || ' linhas');
+exception when others then
+  insert into teste_rls.resultado (teste, esperado, obtido)
+  values ('Proprietário troca o próprio telefone por um válido', '1 linhas', 'erro inesperado: ' || sqlstate || ' ' || sqlerrm);
+end $$;
+
+reset role;
+reset request.jwt.claims;
+
+-- A função do trigger: search_path fixo, roda como dono, ninguém chama pelo app
+insert into teste_rls.resultado (teste, esperado, obtido)
+select 'criar_perfil_no_cadastro tem search_path fixo e é security definer', 'true',
+       (coalesce('search_path=""' = any (proconfig), false) and prosecdef)::text
+from pg_proc
+where oid = 'privado.criar_perfil_no_cadastro()'::regprocedure;
+
+insert into teste_rls.resultado (teste, esperado, obtido) values
+  ('authenticated não executa criar_perfil_no_cadastro', 'false',
+   has_function_privilege('authenticated', 'privado.criar_perfil_no_cadastro()', 'execute')::text),
+  ('anon não executa criar_perfil_no_cadastro', 'false',
+   has_function_privilege('anon', 'privado.criar_perfil_no_cadastro()', 'execute')::text);
+
+-- ---------------------------------------------------------------
+-- 11. Limpeza e resultado
 -- ---------------------------------------------------------------
 delete from public.propostas where reserva_id in ('dddddddd-0000-4000-a000-000000000001',
                                                   'dddddddd-0000-4000-a000-000000000002');
